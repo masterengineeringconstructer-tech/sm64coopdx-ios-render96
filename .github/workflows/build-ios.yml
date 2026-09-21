@@ -1,0 +1,48 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows you to trigger the build manually from the GitHub website
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      # 1. Checkout the source code (including your 300MB texture pack)
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Setup the necessary build dependencies for sm64coopdx
+      - name: Install Dependencies
+        run: |
+          brew install make sdl2 pkg-config glew glfw3 libusb coreutils audiofile
+
+      # 3. Extract assets / Put the ROM in if needed
+      # NOTE: If your fork requires a baseline baserom.us.z64 to extract assets, 
+      # you will need to make sure the script runs or asset extraction is skipped 
+      # since you already baked in the Render96 pack.
+      - name: Prepare Assets
+        run: |
+          echo "Assets are pre-baked in this repository."
+
+      # 4. Compile the application binary
+      - name: Compile Game
+        run: |
+          make TARGET_IOS=1 -j$(sysctl -n hw.ncpu)
+
+      # 5. Bundle it into an IPA payload structure
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          # Replace 'sm64coopdx.app' with the exact name of the built bundle in your build/ folder
+          cp -r build/us_pc/sm64coopdx.app Payload/
+          zip -r sm64coopdx-render96.ipa Payload
+
+      # 6. Upload the final IPA file to your GitHub Action run page
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sm64coopdx-render96-ipa
+          path: sm64coopdx-render96.ipa
